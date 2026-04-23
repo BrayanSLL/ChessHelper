@@ -36,8 +36,9 @@ export interface EloPreset {
 }
 
 export const ELO_PRESETS: EloPreset[] = [
-  { label: 'Débutant', elo: 800 },
-  { label: 'Novice', elo: 1000 },
+  { label: 'Très facile', elo: 100 },
+  { label: 'Débutant', elo: 400 },
+  { label: 'Novice', elo: 800 },
   { label: 'Club', elo: 1200 },
   { label: 'Intermédiaire', elo: 1500 },
   { label: 'Avancé', elo: 1800 },

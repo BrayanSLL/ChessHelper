@@ -89,7 +89,8 @@ export function applyEloSettings(engine: StockfishEngine, elo: number): void {
     engine.send('setoption name UCI_LimitStrength value true')
     engine.send(`setoption name UCI_Elo value ${Math.min(elo, 3190)}`)
   } else {
-    const skillLevel = Math.round(((elo - 800) / (1320 - 800)) * 8)
+    // Map 100–1319 to Skill Level 0–8 linearly
+    const skillLevel = Math.round(((elo - 100) / (1320 - 100)) * 8)
     engine.send('setoption name UCI_LimitStrength value false')
     engine.send(`setoption name Skill Level value ${Math.max(0, skillLevel)}`)
   }

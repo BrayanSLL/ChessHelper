@@ -14,7 +14,7 @@ export function EloSelector({ elo, onChange }: Props) {
       </div>
       <input
         type="range"
-        min={800}
+        min={100}
         max={3000}
         step={10}
         value={elo}
