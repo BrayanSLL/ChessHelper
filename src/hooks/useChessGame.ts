@@ -18,11 +18,9 @@ export function useChessGame(
   const [boardKey, setBoardKey] = useState(0)
   const [analyzedMoves, setAnalyzedMoves] = useState<AnalyzedMove[]>([])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [bestMoveArrow, setBestMoveArrow] = useState<[string, string] | null>(null)
   const [boardFlipped, setBoardFlipped] = useState(false)
   const [gameOver, setGameOver] = useState(false)
   const processingRef = useRef(false)
-  // Incremented on every reset — async operations check this to self-cancel
   const generationRef = useRef(0)
 
   const updateFen = useCallback(() => {
@@ -51,16 +49,15 @@ export function useChessGame(
       processingRef.current = true
       setIsAnalyzing(true)
       updateFen()
-      setBestMoveArrow(null)
 
-      // Helper: returns true if a reset happened since this move started
       const isStale = () => generationRef.current !== generation
 
       try {
-        // Sequential analysis — concurrent calls would cancel each other
+        // Analyze position BEFORE player's move → get eval + engine's best move for classification
         const beforeResult = await analyze(fenBefore, 18)
         if (isStale()) return true
 
+        // Analyze position AFTER player's move → get eval for the advantage bar
         const afterResult = await analyze(chess.fen(), 18)
         if (isStale()) return true
 
@@ -92,81 +89,32 @@ export function useChessGame(
           },
         ])
 
-        if (afterResult.bestMove?.length >= 4) {
-          setBestMoveArrow([
-            afterResult.bestMove.slice(0, 2),
-            afterResult.bestMove.slice(2, 4),
-          ])
-        }
-
-        // Engine response
+        // Engine plays a response
         if (!chess.isGameOver()) {
           const engineMove = await getBestMove(chess.fen(), elo)
           if (isStale()) return true
 
           if (engineMove && engineMove !== '(none)' && engineMove.length >= 4) {
-            const fenBeforeEngine = chess.fen()
-            const engineTurn = chess.turn()
-            const engineMoveNumber = chess.moveNumber()
-
-            let engineMoveObj
             try {
-              engineMoveObj = chess.move({
+              chess.move({
                 from: engineMove.slice(0, 2),
                 to: engineMove.slice(2, 4),
                 promotion: engineMove[4] ?? 'q',
               })
-            } catch {
-              engineMoveObj = null
-            }
-
-            if (engineMoveObj) {
               updateFen()
 
-              const engBefore = await analyze(fenBeforeEngine, 18)
+              // One analysis after engine move to keep the eval bar current
+              const evalAfterEngine = await analyze(chess.fen(), 18)
               if (isStale()) return true
-
-              const engAfter = await analyze(chess.fen(), 18)
-              if (isStale()) return true
-
-              const engCpBefore = normalizeScore(engBefore.score, engineTurn)
-              const engCpAfter = normalizeScore(engAfter.score, chess.turn())
-              const { quality: engQuality, cpLoss: engCpLoss } = classifyMove(
-                engCpBefore,
-                engCpAfter,
-                engineTurn,
-                engBefore.bestMove,
-                engineMoveObj.lan,
-              )
-
-              setAnalyzedMoves((prev) => [
-                ...prev,
-                {
-                  san: engineMoveObj!.san,
-                  lan: engineMoveObj!.lan,
-                  from: engineMoveObj!.from,
-                  to: engineMoveObj!.to,
-                  quality: engQuality,
-                  cpLoss: engCpLoss,
-                  evalBefore: engCpBefore,
-                  evalAfter: engCpAfter,
-                  bestMove: engBefore.bestMove,
-                  moveNumber: engineMoveNumber,
-                  color: engineTurn,
-                },
-              ])
-
-              if (engAfter.bestMove?.length >= 4) {
-                setBestMoveArrow([
-                  engAfter.bestMove.slice(0, 2),
-                  engAfter.bestMove.slice(2, 4),
-                ])
-              }
+              // evalAfterEngine is used by useStockfish's setEvaluation side-effect
+              void evalAfterEngine
+            } catch {
+              // illegal engine move — ignore
             }
           }
         }
       } catch {
-        // Superseded analysis or engine error — game continues
+        // Superseded or engine error
       } finally {
         if (!isStale()) {
           processingRef.current = false
@@ -180,13 +128,12 @@ export function useChessGame(
   )
 
   const resetGame = useCallback(() => {
-    generationRef.current++          // invalidate all in-flight async ops
+    generationRef.current++
     processingRef.current = false
     chessRef.current = new Chess()
-    setBoardKey((k) => k + 1)        // force remount of react-chessboard
+    setBoardKey((k) => k + 1)
     setFen(STARTING_FEN)
     setAnalyzedMoves([])
-    setBestMoveArrow(null)
     setIsAnalyzing(false)
     setGameOver(false)
   }, [])
@@ -197,7 +144,6 @@ export function useChessGame(
     chess.undo()
     chess.undo()
     setAnalyzedMoves((prev) => prev.slice(0, -2))
-    setBestMoveArrow(null)
     updateFen()
   }, [updateFen])
 
@@ -210,7 +156,6 @@ export function useChessGame(
     boardKey,
     analyzedMoves,
     isAnalyzing,
-    bestMoveArrow,
     boardFlipped,
     gameOver,
     makeMove,

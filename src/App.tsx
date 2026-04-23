@@ -16,7 +16,6 @@ export default function App() {
     boardKey,
     analyzedMoves,
     isAnalyzing,
-    bestMoveArrow,
     boardFlipped,
     gameOver,
     makeMove,
@@ -63,7 +62,6 @@ export default function App() {
             key={boardKey}
             fen={fen}
             onMove={makeMove}
-            bestMoveArrow={bestMoveArrow}
             isFlipped={boardFlipped}
             isAnalyzing={isAnalyzing}
             gameOver={gameOver}

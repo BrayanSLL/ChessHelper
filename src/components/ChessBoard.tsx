@@ -1,24 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Chessboard } from 'react-chessboard'
-import type { Arrow, Square } from 'react-chessboard/dist/chessboard/types'
 
 interface Props {
   fen: string
   onMove: (from: string, to: string, promotion?: string) => Promise<boolean>
-  bestMoveArrow: [string, string] | null
   isFlipped: boolean
   isAnalyzing: boolean
   gameOver: boolean
 }
 
-export function ChessBoard({
-  fen,
-  onMove,
-  bestMoveArrow,
-  isFlipped,
-  isAnalyzing,
-  gameOver,
-}: Props) {
+export function ChessBoard({ fen, onMove, isFlipped, isAnalyzing, gameOver }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [boardWidth, setBoardWidth] = useState(480)
 
@@ -34,10 +25,6 @@ export function ChessBoard({
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-
-  const arrows: Arrow[] = bestMoveArrow
-    ? [[bestMoveArrow[0] as Square, bestMoveArrow[1] as Square, 'rgb(0, 168, 0)']]
-    : []
 
   return (
     <div ref={containerRef} className="relative w-full" style={{ maxWidth: 600 }}>
@@ -63,7 +50,6 @@ export function ChessBoard({
           return true
         }}
         boardOrientation={isFlipped ? 'black' : 'white'}
-        customArrows={arrows}
         arePiecesDraggable={!isAnalyzing && !gameOver}
         animationDuration={150}
         customDarkSquareStyle={{ backgroundColor: '#769656' }}
