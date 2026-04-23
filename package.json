@@ -1,0 +1,29 @@
+{
+  "name": "chess-helper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "postinstall": "node -e \"const fs=require('fs'); fs.copyFileSync('node_modules/stockfish/src/stockfish-nnue-16-single.js','public/stockfish.js'); fs.copyFileSync('node_modules/stockfish/src/stockfish-nnue-16-single.wasm','public/stockfish-nnue-16-single.wasm'); fs.copyFileSync('node_modules/stockfish/src/nn-5af11540bbfe.nnue','public/nn-5af11540bbfe.nnue');\"",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "chess.js": "^1.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-chessboard": "^4.7.3",
+    "stockfish": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "3.4.19",
+    "typescript": "^5.8.3",
+    "vite": "^5.4.21"
+  }
+}
