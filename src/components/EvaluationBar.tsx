@@ -22,18 +22,19 @@ export function EvaluationBar({ evaluation, isMate, mateIn, isFlipped }: Props) 
       : (evaluation / 100).toFixed(1)
 
   return (
-    <div className="flex flex-col items-center w-8 select-none">
-      <div className="w-7 flex-1 rounded overflow-hidden flex flex-col border border-gray-700">
+    <div className="flex h-44 flex-col items-center select-none">
+      <div className="mb-2 text-[10px] uppercase tracking-[0.24em] text-gray-500">Eval</div>
+      <div className="flex w-10 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-black/25">
         <div
           className="bg-gray-900 transition-all duration-500"
           style={{ height: `${blackHeight}%` }}
         />
         <div
-          className="bg-gray-100 transition-all duration-500"
+          className="bg-stone-100 transition-all duration-500"
           style={{ height: `${whiteHeight}%` }}
         />
       </div>
-      <span className="text-xs text-gray-300 mt-1 font-mono">{label}</span>
+      <span className="mt-2 rounded-full bg-black/25 px-2 py-1 font-mono text-xs text-gray-200">{label}</span>
     </div>
   )
 }

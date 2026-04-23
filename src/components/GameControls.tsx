@@ -7,23 +7,23 @@ interface Props {
 
 export function GameControls({ onNewGame, onFlipBoard, onUndoMove, isAnalyzing }: Props) {
   return (
-    <div className="flex gap-2 flex-wrap">
+    <div className="grid grid-cols-3 gap-2">
       <button
         onClick={onNewGame}
-        className="flex-1 px-3 py-2 bg-chess-dark hover:bg-green-700 text-white rounded font-medium text-sm transition-colors"
+        className="rounded-2xl bg-chess-dark px-3 py-3 text-sm font-medium text-white transition-colors hover:bg-green-700"
       >
         Nouvelle partie
       </button>
       <button
         onClick={onUndoMove}
         disabled={isAnalyzing}
-        className="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 disabled:opacity-40 text-white rounded font-medium text-sm transition-colors"
+        className="rounded-2xl bg-gray-700 px-3 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-600 disabled:opacity-40"
       >
         Annuler coup
       </button>
       <button
         onClick={onFlipBoard}
-        className="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-medium text-sm transition-colors"
+        className="rounded-2xl bg-gray-700 px-3 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-600"
       >
         Retourner
       </button>

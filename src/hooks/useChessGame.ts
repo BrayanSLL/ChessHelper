@@ -1,12 +1,116 @@
 import { useCallback, useRef, useState } from 'react'
 import { Chess } from 'chess.js'
 import { classifyMove, normalizeScore } from '../utils/moveClassification'
-import type { AnalyzedMove } from '../types/chess'
+import type { AnalyzedMove, GameResult, GameSnapshot, PieceSymbol } from '../types/chess'
 import type { useStockfish } from './useStockfish'
 
 const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
+const PIECE_ORDER: PieceSymbol[] = ['q', 'r', 'b', 'n', 'p']
+const PIECE_VALUES: Record<PieceSymbol, number> = {
+  p: 1,
+  n: 3,
+  b: 3,
+  r: 5,
+  q: 9,
+  k: 0,
+}
+const INITIAL_COUNTS: Record<PieceSymbol, number> = {
+  p: 8,
+  n: 2,
+  b: 2,
+  r: 2,
+  q: 1,
+  k: 1,
+}
 
 type StockfishHook = ReturnType<typeof useStockfish>
+
+function buildGameSnapshot(chess: Chess): GameSnapshot {
+  const counts = {
+    w: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 },
+    b: { p: 0, n: 0, b: 0, r: 0, q: 0, k: 0 },
+  }
+
+  for (const row of chess.board()) {
+    for (const square of row) {
+      if (!square) continue
+      counts[square.color][square.type] += 1
+    }
+  }
+
+  const makeSideState = (color: 'w' | 'b') => {
+    const capturedByOpponent = PIECE_ORDER.flatMap((type) => {
+      const missingCount = INITIAL_COUNTS[type] - counts[color][type]
+      if (missingCount <= 0) return []
+      return [{
+        type,
+        count: missingCount,
+        value: PIECE_VALUES[type] * missingCount,
+      }]
+    })
+
+    const materialOnBoard = PIECE_ORDER.reduce(
+      (total, type) => total + counts[color][type] * PIECE_VALUES[type],
+      0,
+    )
+
+    return {
+      color,
+      capturedByOpponent,
+      lostMaterial: capturedByOpponent.reduce((total, piece) => total + piece.value, 0),
+      materialOnBoard,
+    }
+  }
+
+  const white = makeSideState('w')
+  const black = makeSideState('b')
+  const nonPawnMaterial = white.materialOnBoard + black.materialOnBoard - (counts.w.p + counts.b.p) * PIECE_VALUES.p
+  const queensOnBoard = counts.w.q + counts.b.q
+
+  let phase: GameSnapshot['phase'] = 'middlegame'
+  if (chess.history().length < 12) {
+    phase = 'opening'
+  } else if (queensOnBoard <= 1 || nonPawnMaterial <= 26) {
+    phase = 'endgame'
+  }
+
+  return {
+    turn: chess.turn(),
+    fullmoveNumber: chess.moveNumber(),
+    phase,
+    white,
+    black,
+    materialBalance: white.lostMaterial - black.lostMaterial,
+  }
+}
+
+function buildGameResult(chess: Chess): GameResult {
+  if (chess.isCheckmate()) {
+    return {
+      outcome: chess.turn() === 'w' ? 'black' : 'white',
+      reason: 'checkmate',
+      label: chess.turn() === 'w' ? 'Victoire des Noirs par mat' : 'Victoire des Blancs par mat',
+    }
+  }
+
+  if (chess.isStalemate()) {
+    return { outcome: 'draw', reason: 'stalemate', label: 'Nulle par pat' }
+  }
+
+  if (chess.isThreefoldRepetition()) {
+    return { outcome: 'draw', reason: 'threefold', label: 'Nulle par repetition' }
+  }
+
+  if (chess.isDrawByFiftyMoves()) {
+    return { outcome: 'draw', reason: 'fifty-move', label: 'Nulle par regle des 50 coups' }
+  }
+
+  if (chess.isInsufficientMaterial()) {
+    return { outcome: 'draw', reason: 'insufficient-material', label: 'Nulle pour materiel insuffisant' }
+  }
+
+  return { outcome: 'ongoing', reason: 'ongoing', label: 'Partie en cours' }
+}
 
 export function useChessGame(
   analyze: StockfishHook['analyze'],
@@ -17,15 +121,19 @@ export function useChessGame(
   const [fen, setFen] = useState(STARTING_FEN)
   const [boardKey, setBoardKey] = useState(0)
   const [analyzedMoves, setAnalyzedMoves] = useState<AnalyzedMove[]>([])
+  const [gameSnapshot, setGameSnapshot] = useState<GameSnapshot>(() => buildGameSnapshot(chessRef.current))
+  const [gameResult, setGameResult] = useState<GameResult>(() => buildGameResult(chessRef.current))
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [boardFlipped, setBoardFlipped] = useState(false)
   const [gameOver, setGameOver] = useState(false)
   const processingRef = useRef(false)
   const generationRef = useRef(0)
 
-  const syncFen = useCallback(() => {
+  const syncGameState = useCallback(() => {
     setFen(chessRef.current.fen())
     setGameOver(chessRef.current.isGameOver())
+    setGameSnapshot(buildGameSnapshot(chessRef.current))
+    setGameResult(buildGameResult(chessRef.current))
   }, [])
 
   // Pre-validate a move without mutating state (used by the board before accepting a drop)
@@ -60,7 +168,7 @@ export function useChessGame(
 
       processingRef.current = true
       setIsAnalyzing(true)
-      syncFen()
+      syncGameState()
 
       const isStale = () => generationRef.current !== generation
 
@@ -100,20 +208,45 @@ export function useChessGame(
         ])
 
         if (!chess.isGameOver()) {
+          const engineTurn = chess.turn()
           const engineMove = await getBestMove(chess.fen(), elo)
           if (isStale()) return true
 
           if (engineMove && engineMove !== '(none)' && engineMove.length >= 4) {
             try {
-              chess.move({
+              const appliedEngineMove = chess.move({
                 from: engineMove.slice(0, 2),
                 to: engineMove.slice(2, 4),
                 ...(engineMove[4] ? { promotion: engineMove[4] } : {}),
               })
-              syncFen()
+              syncGameState()
               const evalAfterEngine = await analyze(chess.fen(), 14)
               if (isStale()) return true
-              void evalAfterEngine
+              const cpAfterEngine = normalizeScore(evalAfterEngine.score, chess.turn())
+              const { quality, cpLoss } = classifyMove(
+                cpAfter,
+                cpAfterEngine,
+                engineTurn,
+                afterResult.bestMove,
+                appliedEngineMove.lan,
+              )
+
+              setAnalyzedMoves((prev) => [
+                ...prev,
+                {
+                  san: appliedEngineMove.san,
+                  lan: appliedEngineMove.lan,
+                  from: appliedEngineMove.from,
+                  to: appliedEngineMove.to,
+                  quality,
+                  cpLoss,
+                  evalBefore: cpAfter,
+                  evalAfter: cpAfterEngine,
+                  bestMove: afterResult.bestMove,
+                  moveNumber: appliedEngineMove.color === 'w' ? chess.moveNumber() - 1 : chess.moveNumber(),
+                  color: appliedEngineMove.color,
+                },
+              ])
             } catch {
               // illegal engine move
             }
@@ -130,7 +263,7 @@ export function useChessGame(
 
       return true
     },
-    [analyze, getBestMove, elo, syncFen],
+    [analyze, getBestMove, elo, syncGameState],
   )
 
   const resetGame = useCallback(async () => {
@@ -146,25 +279,53 @@ export function useChessGame(
     setIsAnalyzing(false)
     setGameOver(false)
     setBoardFlipped(playAsBlack)
+    setGameSnapshot(buildGameSnapshot(chessRef.current))
+    setGameResult(buildGameResult(chessRef.current))
 
     if (playAsBlack) {
       processingRef.current = true
       setIsAnalyzing(true)
       try {
+        const beforeResult = await analyze(STARTING_FEN, 14)
+        if (generationRef.current !== gen) return
         const engineMove = await getBestMove(STARTING_FEN, elo)
         if (generationRef.current !== gen) return
         if (engineMove && engineMove !== '(none)' && engineMove.length >= 4) {
           const chess = chessRef.current
           try {
-            chess.move({
+            const appliedEngineMove = chess.move({
               from: engineMove.slice(0, 2),
               to: engineMove.slice(2, 4),
               ...(engineMove[4] ? { promotion: engineMove[4] } : {}),
             })
+            syncGameState()
+            const afterResult = await analyze(chess.fen(), 14)
+            if (generationRef.current !== gen) return
+            const cpBefore = normalizeScore(beforeResult.score, 'w')
+            const cpAfter = normalizeScore(afterResult.score, chess.turn())
+            const { quality, cpLoss } = classifyMove(
+              cpBefore,
+              cpAfter,
+              appliedEngineMove.color,
+              beforeResult.bestMove,
+              appliedEngineMove.lan,
+            )
+            setAnalyzedMoves([
+              {
+                san: appliedEngineMove.san,
+                lan: appliedEngineMove.lan,
+                from: appliedEngineMove.from,
+                to: appliedEngineMove.to,
+                quality,
+                cpLoss,
+                evalBefore: cpBefore,
+                evalAfter: cpAfter,
+                bestMove: beforeResult.bestMove,
+                moveNumber: 1,
+                color: appliedEngineMove.color,
+              },
+            ])
           } catch { /* ignore */ }
-          setFen(chess.fen())
-          setGameOver(chess.isGameOver())
-          await analyze(chess.fen(), 14)
         }
       } catch { /* ignore */ }
       finally {
@@ -181,9 +342,9 @@ export function useChessGame(
     const chess = chessRef.current
     chess.undo()
     chess.undo()
-    setAnalyzedMoves((prev) => prev.slice(0, -2))
-    syncFen()
-  }, [syncFen])
+    setAnalyzedMoves((prev) => prev.slice(0, Math.max(0, prev.length - 2)))
+    syncGameState()
+  }, [syncGameState])
 
   const flipBoard = useCallback(() => {
     setBoardFlipped((f) => !f)
@@ -193,6 +354,8 @@ export function useChessGame(
     fen,
     boardKey,
     analyzedMoves,
+    gameSnapshot,
+    gameResult,
     isAnalyzing,
     boardFlipped,
     gameOver,

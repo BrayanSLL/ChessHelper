@@ -85,13 +85,23 @@ export function parseInfoLine(line: string): Partial<EvaluationResult> | null {
 }
 
 export function applyEloSettings(engine: StockfishEngine, elo: number): void {
-  if (elo >= 1320) {
+  if (elo >= 1200) {
     engine.send('setoption name UCI_LimitStrength value true')
     engine.send(`setoption name UCI_Elo value ${Math.min(elo, 3190)}`)
   } else {
-    // Map 100–1319 to Skill Level 0–8 linearly
-    const skillLevel = Math.round(((elo - 100) / (1320 - 100)) * 8)
+    // Keep low levels intentionally weak and noisy.
+    const skillLevel = Math.round(((elo - 100) / (1200 - 100)) * 6)
     engine.send('setoption name UCI_LimitStrength value false')
     engine.send(`setoption name Skill Level value ${Math.max(0, skillLevel)}`)
   }
+}
+
+export function getEngineMoveTime(elo: number): number {
+  if (elo <= 150) return 60
+  if (elo <= 300) return 90
+  if (elo <= 500) return 130
+  if (elo <= 800) return 220
+  if (elo <= 1200) return 420
+  if (elo <= 1800) return 650
+  return 800
 }

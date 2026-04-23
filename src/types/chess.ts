@@ -30,6 +30,36 @@ export interface EvaluationResult {
   mateIn: number | null
 }
 
+export type PieceSymbol = 'p' | 'n' | 'b' | 'r' | 'q' | 'k'
+
+export interface CapturedPieceGroup {
+  type: PieceSymbol
+  count: number
+  value: number
+}
+
+export interface SideMaterialState {
+  color: 'w' | 'b'
+  capturedByOpponent: CapturedPieceGroup[]
+  lostMaterial: number
+  materialOnBoard: number
+}
+
+export interface GameSnapshot {
+  turn: 'w' | 'b'
+  fullmoveNumber: number
+  phase: 'opening' | 'middlegame' | 'endgame'
+  white: SideMaterialState
+  black: SideMaterialState
+  materialBalance: number
+}
+
+export interface GameResult {
+  outcome: 'white' | 'black' | 'draw' | 'ongoing'
+  reason: 'checkmate' | 'stalemate' | 'threefold' | 'fifty-move' | 'insufficient-material' | 'ongoing'
+  label: string
+}
+
 export interface EloPreset {
   label: string
   elo: number

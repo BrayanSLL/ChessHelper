@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { Chess } from 'chess.js'
+import type { Square } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
 
 interface Props {
@@ -10,9 +13,26 @@ interface Props {
   gameOver: boolean
 }
 
+function normalizeDropTarget(source: string, target: string, piece: string) {
+  if (piece !== 'wK' && piece !== 'bK') return target
+
+  const castlingMap: Record<string, string> = {
+    'e1-h1': 'g1',
+    'e1-a1': 'c1',
+    'e8-h8': 'g8',
+    'e8-a8': 'c8',
+  }
+
+  return castlingMap[`${source}-${target}`] ?? target
+}
+
 export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, gameOver }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [boardWidth, setBoardWidth] = useState(480)
+  const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
+  const [moveTargets, setMoveTargets] = useState<string[]>([])
+
+  const chess = useMemo(() => new Chess(fen), [fen])
 
   useEffect(() => {
     const el = containerRef.current
@@ -27,6 +47,81 @@ export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, g
     return () => ro.disconnect()
   }, [])
 
+  useEffect(() => {
+    setSelectedSquare(null)
+    setMoveTargets([])
+  }, [fen, isAnalyzing, gameOver])
+
+  function getMoveTargets(square: string) {
+    try {
+      return chess.moves({ square: square as Square, verbose: true }).map((move) => move.to)
+    } catch {
+      return []
+    }
+  }
+
+  function selectSquare(square: string, piece?: string) {
+    if (isAnalyzing || gameOver) return
+    const currentTurn = chess.turn()
+    if (!piece || piece[0] !== currentTurn) {
+      setSelectedSquare(null)
+      setMoveTargets([])
+      return
+    }
+
+    const targets = getMoveTargets(square)
+    if (targets.length === 0) {
+      setSelectedSquare(null)
+      setMoveTargets([])
+      return
+    }
+
+    setSelectedSquare(square)
+    setMoveTargets(targets)
+  }
+
+  function tryMove(source: string, target: string, piece: string) {
+    const normalizedTarget = normalizeDropTarget(source, target, piece)
+    if (!isValidMove(source, normalizedTarget)) return false
+
+    const promotion =
+      piece[1] === 'P' &&
+      ((piece[0] === 'w' && normalizedTarget[1] === '8') ||
+        (piece[0] === 'b' && normalizedTarget[1] === '1'))
+        ? 'q'
+        : undefined
+
+    setSelectedSquare(null)
+    setMoveTargets([])
+    void onMove(source, normalizedTarget, promotion)
+    return true
+  }
+
+  const customSquareStyles = useMemo(() => {
+    const styles: Record<string, CSSProperties> = {}
+
+    if (selectedSquare) {
+      styles[selectedSquare] = {
+        boxShadow: 'inset 0 0 0 4px rgba(163, 230, 53, 0.92)',
+        backgroundColor: 'rgba(163, 230, 53, 0.24)',
+      }
+    }
+
+    for (const square of moveTargets) {
+      const pieceOnTarget = chess.get(square as never)
+      styles[square] = pieceOnTarget
+        ? {
+            boxShadow: 'inset 0 0 0 4px rgba(249, 115, 22, 0.88)',
+            backgroundColor: 'rgba(249, 115, 22, 0.18)',
+          }
+        : {
+            backgroundImage: 'radial-gradient(circle, rgba(163,230,53,0.82) 0, rgba(163,230,53,0.82) 18%, transparent 20%)',
+          }
+    }
+
+    return styles
+  }, [chess, moveTargets, selectedSquare])
+
   return (
     <div ref={containerRef} className="relative w-full" style={{ maxWidth: 600 }}>
       {isAnalyzing && (
@@ -39,18 +134,32 @@ export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, g
       <Chessboard
         boardWidth={boardWidth}
         position={fen}
+        customSquareStyles={customSquareStyles}
         onPieceDrop={(source, target, piece) => {
           if (isAnalyzing || gameOver) return false
-          // Pre-validate synchronously so the piece snaps back on invalid moves
-          if (!isValidMove(source, target)) return false
-          const promotion =
-            piece[1] === 'P' &&
-            ((piece[0] === 'w' && target[1] === '8') ||
-              (piece[0] === 'b' && target[1] === '1'))
-              ? 'q'
-              : undefined
-          onMove(source, target, promotion)
-          return true
+          return tryMove(source, target, piece)
+        }}
+        onPieceClick={(piece, square) => {
+          if (selectedSquare === square) {
+            setSelectedSquare(null)
+            setMoveTargets([])
+            return
+          }
+          selectSquare(square, piece)
+        }}
+        onSquareClick={(square, piece) => {
+          if (isAnalyzing || gameOver) return
+
+          if (selectedSquare) {
+            const selectedPiece = chess.get(selectedSquare as never)
+            const currentPieceCode = selectedPiece ? `${selectedPiece.color}${selectedPiece.type.toUpperCase()}` : ''
+
+            if (moveTargets.includes(square) && currentPieceCode) {
+              if (tryMove(selectedSquare, square, currentPieceCode)) return
+            }
+          }
+
+          selectSquare(square, piece)
         }}
         boardOrientation={isFlipped ? 'black' : 'white'}
         arePiecesDraggable={!isAnalyzing && !gameOver}

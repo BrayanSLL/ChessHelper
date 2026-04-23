@@ -9,8 +9,8 @@ interface Props {
 
 export function MoveAnalysis({ lastMove, evaluation, isAnalyzing }: Props) {
   return (
-    <div className="bg-panel-bg border border-panel-border rounded-lg p-3 space-y-3">
-      <h3 className="text-gray-300 font-semibold text-sm uppercase tracking-wide">
+    <div className="rounded-[28px] border border-panel-border bg-panel-bg/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.22)] space-y-4">
+      <h3 className="text-gray-300 font-semibold text-sm uppercase tracking-[0.26em]">
         Analyse
       </h3>
 
@@ -26,7 +26,7 @@ export function MoveAnalysis({ lastMove, evaluation, isAnalyzing }: Props) {
       )}
 
       {evaluation && !isAnalyzing && (
-        <div className="text-xs text-gray-500 space-y-1">
+        <div className="grid gap-2 text-xs text-gray-500 sm:grid-cols-2">
           <div>
             <span className="text-gray-400">Éval : </span>
             <span className="text-white font-mono">
@@ -58,7 +58,7 @@ export function MoveAnalysis({ lastMove, evaluation, isAnalyzing }: Props) {
 function LastMoveCard({ move }: { move: AnalyzedMove }) {
   const cfg = MOVE_QUALITY_CONFIG[move.quality]
   return (
-    <div className={`rounded-lg p-3 ${cfg.bgColor} border border-transparent`}>
+    <div className={`rounded-[24px] border border-white/5 p-4 ${cfg.bgColor}`}>
       <div className="flex items-center justify-between">
         <span className="text-white font-bold text-lg">{move.san}</span>
         <span className={`font-bold text-lg ${cfg.color}`}>{cfg.icon}</span>
