@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { Chessboard } from 'react-chessboard'
 import type { Arrow, Square } from 'react-chessboard/dist/chessboard/types'
 
@@ -18,13 +19,29 @@ export function ChessBoard({
   isAnalyzing,
   gameOver,
 }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [boardWidth, setBoardWidth] = useState(480)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = () => {
+      const w = el.offsetWidth
+      if (w > 0) setBoardWidth(w)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const arrows: Arrow[] = bestMoveArrow
     ? [[bestMoveArrow[0] as Square, bestMoveArrow[1] as Square, 'rgb(0, 168, 0)']]
     : []
 
   return (
-    <div className="relative">
-      {(isAnalyzing) && (
+    <div ref={containerRef} className="relative w-full" style={{ maxWidth: 600 }}>
+      {isAnalyzing && (
         <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/20 rounded pointer-events-none">
           <div className="bg-gray-900/80 rounded-lg px-4 py-2 text-sm text-gray-300">
             Analyse…
@@ -32,6 +49,7 @@ export function ChessBoard({
         </div>
       )}
       <Chessboard
+        boardWidth={boardWidth}
         position={fen}
         onPieceDrop={(source, target, piece) => {
           if (isAnalyzing || gameOver) return false

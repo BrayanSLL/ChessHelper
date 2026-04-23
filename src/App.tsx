@@ -58,7 +58,7 @@ export default function App() {
           isFlipped={boardFlipped}
         />
 
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex flex-col items-center gap-2 w-full" style={{ maxWidth: 600 }}>
           <ChessBoard
             key={boardKey}
             fen={fen}
