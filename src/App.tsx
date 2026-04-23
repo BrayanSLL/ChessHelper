@@ -13,6 +13,7 @@ export default function App() {
   const { isReady, evaluation, analyze, getBestMove } = useStockfish()
   const {
     fen,
+    boardKey,
     analyzedMoves,
     isAnalyzing,
     bestMoveArrow,
@@ -59,6 +60,7 @@ export default function App() {
 
         <div className="flex flex-col items-center gap-2">
           <ChessBoard
+            key={boardKey}
             fen={fen}
             onMove={makeMove}
             bestMoveArrow={bestMoveArrow}
