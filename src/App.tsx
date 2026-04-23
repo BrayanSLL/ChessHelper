@@ -18,6 +18,7 @@ export default function App() {
     isAnalyzing,
     boardFlipped,
     gameOver,
+    isValidMove,
     makeMove,
     resetGame,
     undoMove,
@@ -62,6 +63,7 @@ export default function App() {
             key={boardKey}
             fen={fen}
             onMove={makeMove}
+            isValidMove={isValidMove}
             isFlipped={boardFlipped}
             isAnalyzing={isAnalyzing}
             gameOver={gameOver}

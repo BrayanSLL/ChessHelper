@@ -4,12 +4,13 @@ import { Chessboard } from 'react-chessboard'
 interface Props {
   fen: string
   onMove: (from: string, to: string, promotion?: string) => Promise<boolean>
+  isValidMove: (from: string, to: string) => boolean
   isFlipped: boolean
   isAnalyzing: boolean
   gameOver: boolean
 }
 
-export function ChessBoard({ fen, onMove, isFlipped, isAnalyzing, gameOver }: Props) {
+export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, gameOver }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [boardWidth, setBoardWidth] = useState(480)
 
@@ -40,6 +41,8 @@ export function ChessBoard({ fen, onMove, isFlipped, isAnalyzing, gameOver }: Pr
         position={fen}
         onPieceDrop={(source, target, piece) => {
           if (isAnalyzing || gameOver) return false
+          // Pre-validate synchronously so the piece snaps back on invalid moves
+          if (!isValidMove(source, target)) return false
           const promotion =
             piece[1] === 'P' &&
             ((piece[0] === 'w' && target[1] === '8') ||
