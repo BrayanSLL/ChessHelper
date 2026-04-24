@@ -211,6 +211,7 @@ export function useChessGame(
             evalBefore: cpBefore,
             evalAfter: cpAfter,
             bestMove: beforeResult.bestMove,
+            fenBefore,
             moveNumber,
             color: turn,
           },
@@ -218,7 +219,8 @@ export function useChessGame(
 
         if (!chess.isGameOver()) {
           const engineTurn = chess.turn()
-          const engineMove = await getBestMove(chess.fen(), elo)
+          const engineFenBefore = chess.fen()
+          const engineMove = await getBestMove(engineFenBefore, elo)
           if (isStale()) return true
 
           if (engineMove && engineMove !== '(none)' && engineMove.length >= 4) {
@@ -257,6 +259,7 @@ export function useChessGame(
                   evalBefore: cpAfter,
                   evalAfter: cpAfterEngine,
                   bestMove: afterResult.bestMove,
+                  fenBefore: engineFenBefore,
                   moveNumber: appliedEngineMove.color === 'w' ? chess.moveNumber() - 1 : chess.moveNumber(),
                   color: appliedEngineMove.color,
                 },
@@ -338,6 +341,7 @@ export function useChessGame(
                 evalBefore: cpBefore,
                 evalAfter: cpAfter,
                 bestMove: beforeResult.bestMove,
+                fenBefore: STARTING_FEN,
                 moveNumber: 1,
                 color: appliedEngineMove.color,
               },

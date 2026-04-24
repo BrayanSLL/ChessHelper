@@ -231,5 +231,53 @@ export function useStockfish() {
     [],
   )
 
-  return { isReady, evaluation, analyze, getBestMove }
+  const getAlternatives = useCallback(
+    (fen: string, count = 3): Promise<{ move: string; score: number; isMate: boolean }[]> => {
+      return new Promise((resolve, reject) => {
+        const engine = engineRef.current
+        if (!engine) { reject(new Error('Engine not ready')); return }
+
+        const id = ++analysisIdRef.current
+        const candidateMap = new Map<string, { move: string; score: number; isMate: boolean }>()
+
+        engine.send('stop')
+        engine.send(`setoption name MultiPV value ${count + 1}`)
+
+        const unsubscribe = engine.onOutput((line) => {
+          if (analysisIdRef.current !== id) {
+            unsubscribe()
+            reject(new Error('Superseded'))
+            return
+          }
+
+          if (line.startsWith('info') && line.includes(' pv ') && line.includes(' score ')) {
+            const scoreMatch = line.match(/\bscore (cp|mate) (-?\d+)/)
+            const pvMatch = line.match(/\bpv (\w+)/)
+            if (scoreMatch && pvMatch) {
+              const isMate = scoreMatch[1] === 'mate'
+              const score = isMate
+                ? (parseInt(scoreMatch[2], 10) > 0 ? 100000 : -100000)
+                : parseInt(scoreMatch[2], 10)
+              candidateMap.set(pvMatch[1], { move: pvMatch[1], score, isMate })
+            }
+          }
+
+          if (line.startsWith('bestmove')) {
+            unsubscribe()
+            engine.send('setoption name MultiPV value 1')
+            const results = Array.from(candidateMap.values())
+              .sort((a, b) => b.score - a.score)
+              .slice(0, count)
+            resolve(results)
+          }
+        })
+
+        engine.send(`position fen ${fen}`)
+        engine.send('go depth 14')
+      })
+    },
+    [],
+  )
+
+  return { isReady, evaluation, analyze, getBestMove, getAlternatives }
 }

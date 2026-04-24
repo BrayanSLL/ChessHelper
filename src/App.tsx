@@ -1,21 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Chess } from 'chess.js'
 import { useStockfish } from './hooks/useStockfish'
 import { useChessGame } from './hooks/useChessGame'
 import { ChessBoard } from './components/ChessBoard'
 import { EloSelector } from './components/EloSelector'
 import { MoveAnalysis } from './components/MoveAnalysis'
+import type { Alternative } from './components/MoveAnalysis'
 import { MoveHistory } from './components/MoveHistory'
 import { GameControls } from './components/GameControls'
 import { BoardStatusPanel } from './components/BoardStatusPanel'
 import { CapturedPiecesBar } from './components/CapturedPiecesBar'
 import { LiveEvalChart } from './components/LiveEvalChart'
 import { GameReviewSummary } from './components/GameReviewSummary'
+import { SquareHeatmap } from './components/SquareHeatmap'
 import { detectOpening } from './utils/openings'
 
 export default function App() {
   const [elo, setElo] = useState(1500)
-  const { isReady, evaluation, analyze, getBestMove } = useStockfish()
+  const { isReady, evaluation, analyze, getBestMove, getAlternatives } = useStockfish()
   const {
     fen,
     boardKey,
@@ -53,6 +55,32 @@ export default function App() {
 
   const reviewMove = reviewIndex !== null ? (analyzedMoves[reviewIndex] ?? null) : null
 
+  // Fetch alternatives when landing on a mistake/blunder during review
+  const [alternatives, setAlternatives] = useState<Alternative[] | null>(null)
+  const altFetchRef = useRef(0)
+
+  useEffect(() => {
+    const needsAlts =
+      reviewMove !== null &&
+      (reviewMove.quality === 'mistake' || reviewMove.quality === 'blunder')
+
+    if (!needsAlts) {
+      setAlternatives(null)
+      return
+    }
+
+    const fetchId = ++altFetchRef.current
+    setAlternatives(null) // show loading state
+
+    getAlternatives(reviewMove.fenBefore, 3)
+      .then((alts) => {
+        if (altFetchRef.current === fetchId) setAlternatives(alts)
+      })
+      .catch(() => {
+        if (altFetchRef.current === fetchId) setAlternatives([])
+      })
+  }, [reviewMove, getAlternatives])
+
   // Keyboard navigation while reviewing
   useEffect(() => {
     if (!isReviewing) return
@@ -82,6 +110,7 @@ export default function App() {
     a.click()
     URL.revokeObjectURL(url)
   }
+
   const topSide = boardFlipped ? gameSnapshot.white : gameSnapshot.black
   const bottomSide = boardFlipped ? gameSnapshot.black : gameSnapshot.white
   const whiteLead = gameSnapshot.black.lostMaterial - gameSnapshot.white.lostMaterial
@@ -208,6 +237,8 @@ export default function App() {
               lastMove={lastMove}
               evaluation={evaluation}
               isAnalyzing={isAnalyzing}
+              reviewedMove={isReviewing ? reviewMove : null}
+              alternatives={isReviewing ? alternatives : null}
             />
 
             <section className="rounded-[28px] border border-panel-border bg-panel-bg/95 p-4 shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
@@ -229,6 +260,8 @@ export default function App() {
                 <LiveEvalChart moves={analyzedMoves} />
               </div>
             </section>
+
+            <SquareHeatmap moves={analyzedMoves} />
 
             <GameControls
               onNewGame={resetGame}

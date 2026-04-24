@@ -18,6 +18,7 @@ export interface AnalyzedMove {
   evalBefore: number
   evalAfter: number
   bestMove: string | null
+  fenBefore: string
   moveNumber: number
   color: 'w' | 'b'
 }
