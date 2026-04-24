@@ -55,6 +55,11 @@ export default function App() {
 
   const reviewMove = reviewIndex !== null ? (analyzedMoves[reviewIndex] ?? null) : null
 
+  const bestMoveArrow = useMemo(() => {
+    if (!reviewMove?.bestMove || reviewMove.bestMove.length < 4) return null
+    return { from: reviewMove.bestMove.slice(0, 2), to: reviewMove.bestMove.slice(2, 4) }
+  }, [reviewMove])
+
   // Fetch alternatives when landing on a mistake/blunder during review
   const [alternatives, setAlternatives] = useState<Alternative[] | null>(null)
   const altFetchRef = useRef(0)
@@ -213,6 +218,7 @@ export default function App() {
                 isAnalyzing={isAnalyzing}
                 gameOver={gameOver}
                 lastMove={isReviewing ? (reviewMove ? { from: reviewMove.from, to: reviewMove.to } : null) : lastMoveSq}
+                bestMoveArrow={isReviewing ? bestMoveArrow : null}
                 readOnly={isReviewing}
               />
             </div>

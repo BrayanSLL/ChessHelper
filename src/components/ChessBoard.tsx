@@ -12,6 +12,7 @@ interface Props {
   isAnalyzing: boolean
   gameOver: boolean
   lastMove?: { from: string; to: string } | null
+  bestMoveArrow?: { from: string; to: string } | null
   readOnly?: boolean
 }
 
@@ -28,7 +29,7 @@ function normalizeDropTarget(source: string, target: string, piece: string) {
   return castlingMap[`${source}-${target}`] ?? target
 }
 
-export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, gameOver, lastMove, readOnly }: Props) {
+export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, gameOver, lastMove, bestMoveArrow, readOnly }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [boardWidth, setBoardWidth] = useState(480)
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
@@ -175,11 +176,10 @@ export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, g
         animationDuration={150}
         customDarkSquareStyle={{ backgroundColor: '#769656' }}
         customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
-        customArrows={
-          lastMove
-            ? [[lastMove.from as Square, lastMove.to as Square, 'rgba(6,100,6,0.72)']]
-            : []
-        }
+        customArrows={[
+          ...(lastMove ? [[lastMove.from as Square, lastMove.to as Square, 'rgba(6,100,6,0.72)']] as [Square, Square, string][] : []),
+          ...(bestMoveArrow ? [[bestMoveArrow.from as Square, bestMoveArrow.to as Square, 'rgba(59,130,246,0.88)']] as [Square, Square, string][] : []),
+        ]}
         customArrowColor="rgba(6,100,6,0.72)"
       />
     </div>
