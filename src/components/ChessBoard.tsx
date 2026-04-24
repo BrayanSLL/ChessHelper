@@ -12,6 +12,7 @@ interface Props {
   isAnalyzing: boolean
   gameOver: boolean
   lastMove?: { from: string; to: string } | null
+  readOnly?: boolean
 }
 
 function normalizeDropTarget(source: string, target: string, piece: string) {
@@ -27,7 +28,7 @@ function normalizeDropTarget(source: string, target: string, piece: string) {
   return castlingMap[`${source}-${target}`] ?? target
 }
 
-export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, gameOver, lastMove }: Props) {
+export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, gameOver, lastMove, readOnly }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [boardWidth, setBoardWidth] = useState(480)
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
@@ -62,7 +63,7 @@ export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, g
   }
 
   function selectSquare(square: string, piece?: string) {
-    if (isAnalyzing || gameOver) return
+    if (isAnalyzing || gameOver || readOnly) return
     const currentTurn = chess.turn()
     if (!piece || piece[0] !== currentTurn) {
       setSelectedSquare(null)
@@ -170,7 +171,7 @@ export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, g
           selectSquare(square, piece)
         }}
         boardOrientation={isFlipped ? 'black' : 'white'}
-        arePiecesDraggable={!isAnalyzing && !gameOver}
+        arePiecesDraggable={!isAnalyzing && !gameOver && !readOnly}
         animationDuration={150}
         customDarkSquareStyle={{ backgroundColor: '#769656' }}
         customLightSquareStyle={{ backgroundColor: '#eeeed2' }}

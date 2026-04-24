@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { Chess } from 'chess.js'
 import { useStockfish } from './hooks/useStockfish'
 import { useChessGame } from './hooks/useChessGame'
 import { ChessBoard } from './components/ChessBoard'
@@ -31,10 +32,44 @@ export default function App() {
     undoMove,
     flipBoard,
     getPgn,
+    goToMove,
+    reviewIndex,
   } = useChessGame(analyze, getBestMove, elo)
 
   const lastMove = analyzedMoves.length > 0 ? analyzedMoves[analyzedMoves.length - 1] : null
   const openingName = detectOpening(analyzedMoves.map((m) => m.san))
+
+  // ── Review mode ──────────────────────────────────────────────────────────
+  const isReviewing = reviewIndex !== null
+
+  const reviewFen = useMemo(() => {
+    if (reviewIndex === null) return null
+    const chess = new Chess()
+    for (let i = 0; i <= reviewIndex && i < analyzedMoves.length; i++) {
+      try { chess.move(analyzedMoves[i].san) } catch { break }
+    }
+    return chess.fen()
+  }, [reviewIndex, analyzedMoves])
+
+  const reviewMove = reviewIndex !== null ? (analyzedMoves[reviewIndex] ?? null) : null
+
+  // Keyboard navigation while reviewing
+  useEffect(() => {
+    if (!isReviewing) return
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'ArrowLeft') {
+        goToMove(Math.max(0, (reviewIndex ?? 0) - 1))
+      } else if (e.key === 'ArrowRight') {
+        const next = (reviewIndex ?? -1) + 1
+        if (next >= analyzedMoves.length) goToMove(null)
+        else goToMove(next)
+      } else if (e.key === 'Escape') {
+        goToMove(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isReviewing, reviewIndex, analyzedMoves.length, goToMove])
 
   function handleExportPgn() {
     const pgn = getPgn()
@@ -94,22 +129,62 @@ export default function App() {
           <section className="flex min-w-0 flex-1 flex-col gap-3 xl:max-w-[720px]">
             <CapturedPiecesBar side={topSide} materialLead={topLead} position="top" />
 
-            {openingName && (
+            {openingName && !isReviewing && (
               <div className="text-center text-xs text-gray-400 truncate px-2 -mt-1">
                 {openingName}
+              </div>
+            )}
+
+            {/* Review mode banner */}
+            {isReviewing && (
+              <div className="flex items-center justify-between gap-2 rounded-2xl border border-blue-500/25 bg-blue-900/20 px-3 py-2">
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => goToMove(Math.max(0, reviewIndex! - 1))}
+                    className="rounded-lg px-2 py-1 text-sm text-gray-300 hover:bg-white/10 disabled:opacity-30"
+                    disabled={reviewIndex === 0}
+                  >
+                    ←
+                  </button>
+                  <span className="text-xs text-blue-300 font-medium tabular-nums">
+                    Coup {reviewIndex! + 1} / {analyzedMoves.length}
+                    {reviewMove && (
+                      <span className="ml-2 text-gray-400">
+                        ({reviewMove.color === 'w' ? '♙' : '♟'} {reviewMove.san})
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    onClick={() => {
+                      const next = reviewIndex! + 1
+                      if (next >= analyzedMoves.length) goToMove(null)
+                      else goToMove(next)
+                    }}
+                    className="rounded-lg px-2 py-1 text-sm text-gray-300 hover:bg-white/10"
+                  >
+                    →
+                  </button>
+                </div>
+                <button
+                  onClick={() => goToMove(null)}
+                  className="text-xs text-gray-500 hover:text-white transition-colors"
+                >
+                  ✕ Jeu en direct
+                </button>
               </div>
             )}
 
             <div className="rounded-[30px] border border-panel-border bg-panel-bg/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
               <ChessBoard
                 key={boardKey}
-                fen={fen}
+                fen={reviewFen ?? fen}
                 onMove={makeMove}
                 isValidMove={isValidMove}
                 isFlipped={boardFlipped}
                 isAnalyzing={isAnalyzing}
                 gameOver={gameOver}
-                lastMove={lastMoveSq}
+                lastMove={isReviewing ? (reviewMove ? { from: reviewMove.from, to: reviewMove.to } : null) : lastMoveSq}
+                readOnly={isReviewing}
               />
             </div>
 
@@ -146,7 +221,11 @@ export default function App() {
               </div>
 
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] xl:items-start">
-                <MoveHistory moves={analyzedMoves} />
+                <MoveHistory
+                  moves={analyzedMoves}
+                  reviewIndex={reviewIndex}
+                  onMoveClick={goToMove}
+                />
                 <LiveEvalChart moves={analyzedMoves} />
               </div>
             </section>

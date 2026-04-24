@@ -128,6 +128,7 @@ export function useChessGame(
   const [boardFlipped, setBoardFlipped] = useState(false)
   const [gameOver, setGameOver] = useState(false)
   const [lastMoveSq, setLastMoveSq] = useState<{ from: string; to: string } | null>(null)
+  const [reviewIndex, setReviewIndex] = useState<number | null>(null)
   const processingRef = useRef(false)
   const generationRef = useRef(0)
 
@@ -293,6 +294,7 @@ export function useChessGame(
     setIsAnalyzing(false)
     setGameOver(false)
     setLastMoveSq(null)
+    setReviewIndex(null)
     setBoardFlipped(playAsBlack)
     setGameSnapshot(buildGameSnapshot(chessRef.current))
     setGameResult(buildGameResult(chessRef.current))
@@ -366,6 +368,8 @@ export function useChessGame(
 
   const getPgn = useCallback(() => chessRef.current.pgn(), [])
 
+  const goToMove = useCallback((index: number | null) => setReviewIndex(index), [])
+
   const flipBoard = useCallback(() => {
     setBoardFlipped((f) => !f)
   }, [])
@@ -380,11 +384,13 @@ export function useChessGame(
     boardFlipped,
     gameOver,
     lastMoveSq,
+    reviewIndex,
     isValidMove,
     makeMove,
     resetGame,
     undoMove,
     flipBoard,
     getPgn,
+    goToMove,
   }
 }

@@ -4,27 +4,35 @@ import type { AnalyzedMove } from '../types/chess'
 
 interface Props {
   moves: AnalyzedMove[]
+  reviewIndex?: number | null
+  onMoveClick?: (index: number) => void
 }
 
-export function MoveHistory({ moves }: Props) {
+export function MoveHistory({ moves, reviewIndex, onMoveClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const selectedRef = useRef<HTMLDivElement>(null)
 
+  // Scroll to keep selected move visible; if no selection, scroll to bottom
   useEffect(() => {
-    const el = containerRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [moves.length])
+    if (reviewIndex !== null && reviewIndex !== undefined) {
+      selectedRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    } else {
+      const el = containerRef.current
+      if (el) el.scrollTop = el.scrollHeight
+    }
+  }, [moves.length, reviewIndex])
 
-  // Group moves into pairs (white, black)
-  const pairs: { white?: AnalyzedMove; black?: AnalyzedMove; num: number }[] = []
-  for (const move of moves) {
+  const pairs: { white?: { move: AnalyzedMove; idx: number }; black?: { move: AnalyzedMove; idx: number }; num: number }[] = []
+  for (let i = 0; i < moves.length; i++) {
+    const move = moves[i]
     if (move.color === 'w') {
-      pairs.push({ white: move, num: move.moveNumber })
+      pairs.push({ white: { move, idx: i }, num: move.moveNumber })
     } else {
       const last = pairs[pairs.length - 1]
       if (last && !last.black) {
-        last.black = move
+        last.black = { move, idx: i }
       } else {
-        pairs.push({ black: move, num: move.moveNumber })
+        pairs.push({ black: { move, idx: i }, num: move.moveNumber })
       }
     }
   }
@@ -51,22 +59,49 @@ export function MoveHistory({ moves }: Props) {
         >
           <span className="pt-2 text-right text-gray-500">{pair.num}.</span>
           {pair.white ? (
-            <MoveChip move={pair.white} sideLabel="Blancs" />
+            <MoveChip
+              move={pair.white.move}
+              sideLabel="Blancs"
+              isSelected={reviewIndex === pair.white.idx}
+              ref={reviewIndex === pair.white.idx ? selectedRef : undefined}
+              onClick={() => onMoveClick?.(pair.white!.idx)}
+            />
           ) : (
             <span className="flex-1" />
           )}
-          {pair.black ? <MoveChip move={pair.black} sideLabel="Noirs" /> : <span className="flex-1" />}
+          {pair.black ? (
+            <MoveChip
+              move={pair.black.move}
+              sideLabel="Noirs"
+              isSelected={reviewIndex === pair.black.idx}
+              ref={reviewIndex === pair.black.idx ? selectedRef : undefined}
+              onClick={() => onMoveClick?.(pair.black!.idx)}
+            />
+          ) : (
+            <span className="flex-1" />
+          )}
         </div>
       ))}
     </div>
   )
 }
 
-function MoveChip({ move, sideLabel }: { move: AnalyzedMove; sideLabel: string }) {
+import { forwardRef } from 'react'
+
+const MoveChip = forwardRef<
+  HTMLDivElement,
+  { move: AnalyzedMove; sideLabel: string; isSelected: boolean; onClick: () => void }
+>(function MoveChip({ move, sideLabel, isSelected, onClick }, ref) {
   const cfg = MOVE_QUALITY_CONFIG[move.quality]
   return (
     <div
-      className={`min-w-0 rounded-2xl border border-white/5 px-3 py-2 ${cfg.bgColor}`}
+      ref={ref}
+      onClick={onClick}
+      className={`min-w-0 cursor-pointer rounded-2xl border px-3 py-2 transition-colors ${cfg.bgColor} ${
+        isSelected
+          ? 'border-white/40 ring-1 ring-white/30'
+          : 'border-white/5 hover:border-white/20'
+      }`}
       title={`${cfg.label} (perte: ${move.cpLoss} cp)`}
     >
       <div className="mb-1 flex items-center justify-between gap-2">
@@ -80,4 +115,4 @@ function MoveChip({ move, sideLabel }: { move: AnalyzedMove; sideLabel: string }
       </div>
     </div>
   )
-}
+})
