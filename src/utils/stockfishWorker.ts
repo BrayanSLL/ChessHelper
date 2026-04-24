@@ -97,11 +97,11 @@ export function applyEloSettings(engine: StockfishEngine, elo: number): void {
 }
 
 export function getEngineMoveTime(elo: number): number {
-  if (elo <= 150) return 60
-  if (elo <= 300) return 90
-  if (elo <= 500) return 130
-  if (elo <= 800) return 220
-  if (elo <= 1200) return 420
-  if (elo <= 1800) return 650
-  return 800
+  if (elo <= 150) return 30
+  if (elo <= 300) return 40
+  if (elo <= 500) return 60
+  if (elo <= 800) return 80
+  if (elo <= 1200) return 150
+  if (elo <= 1800) return 250
+  return 400
 }
