@@ -10,6 +10,7 @@ import { BoardStatusPanel } from './components/BoardStatusPanel'
 import { CapturedPiecesBar } from './components/CapturedPiecesBar'
 import { LiveEvalChart } from './components/LiveEvalChart'
 import { GameReviewSummary } from './components/GameReviewSummary'
+import { detectOpening } from './utils/openings'
 
 export default function App() {
   const [elo, setElo] = useState(1500)
@@ -23,14 +24,29 @@ export default function App() {
     isAnalyzing,
     boardFlipped,
     gameOver,
+    lastMoveSq,
     isValidMove,
     makeMove,
     resetGame,
     undoMove,
     flipBoard,
+    getPgn,
   } = useChessGame(analyze, getBestMove, elo)
 
   const lastMove = analyzedMoves.length > 0 ? analyzedMoves[analyzedMoves.length - 1] : null
+  const openingName = detectOpening(analyzedMoves.map((m) => m.san))
+
+  function handleExportPgn() {
+    const pgn = getPgn()
+    if (!pgn) return
+    const blob = new Blob([pgn], { type: 'application/x-chess-pgn' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'partie.pgn'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
   const topSide = boardFlipped ? gameSnapshot.white : gameSnapshot.black
   const bottomSide = boardFlipped ? gameSnapshot.black : gameSnapshot.white
   const whiteLead = gameSnapshot.black.lostMaterial - gameSnapshot.white.lostMaterial
@@ -78,6 +94,12 @@ export default function App() {
           <section className="flex min-w-0 flex-1 flex-col gap-3 xl:max-w-[720px]">
             <CapturedPiecesBar side={topSide} materialLead={topLead} position="top" />
 
+            {openingName && (
+              <div className="text-center text-xs text-gray-400 truncate px-2 -mt-1">
+                {openingName}
+              </div>
+            )}
+
             <div className="rounded-[30px] border border-panel-border bg-panel-bg/95 p-3 shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
               <ChessBoard
                 key={boardKey}
@@ -87,6 +109,7 @@ export default function App() {
                 isFlipped={boardFlipped}
                 isAnalyzing={isAnalyzing}
                 gameOver={gameOver}
+                lastMove={lastMoveSq}
               />
             </div>
 
@@ -132,6 +155,7 @@ export default function App() {
               onNewGame={resetGame}
               onFlipBoard={flipBoard}
               onUndoMove={undoMove}
+              onExportPgn={handleExportPgn}
               isAnalyzing={isAnalyzing}
             />
           </aside>

@@ -11,6 +11,7 @@ interface Props {
   isFlipped: boolean
   isAnalyzing: boolean
   gameOver: boolean
+  lastMove?: { from: string; to: string } | null
 }
 
 function normalizeDropTarget(source: string, target: string, piece: string) {
@@ -26,7 +27,7 @@ function normalizeDropTarget(source: string, target: string, piece: string) {
   return castlingMap[`${source}-${target}`] ?? target
 }
 
-export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, gameOver }: Props) {
+export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, gameOver, lastMove }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [boardWidth, setBoardWidth] = useState(480)
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
@@ -100,6 +101,13 @@ export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, g
   const customSquareStyles = useMemo(() => {
     const styles: Record<string, CSSProperties> = {}
 
+    // Last move highlight (yellow, behind selection)
+    if (lastMove) {
+      const lastMoveStyle: CSSProperties = { backgroundColor: 'rgba(255, 213, 0, 0.38)' }
+      styles[lastMove.from] = lastMoveStyle
+      styles[lastMove.to] = lastMoveStyle
+    }
+
     if (selectedSquare) {
       styles[selectedSquare] = {
         boxShadow: 'inset 0 0 0 4px rgba(163, 230, 53, 0.92)',
@@ -120,7 +128,7 @@ export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, g
     }
 
     return styles
-  }, [chess, moveTargets, selectedSquare])
+  }, [chess, lastMove, moveTargets, selectedSquare])
 
   return (
     <div ref={containerRef} className="relative w-full" style={{ maxWidth: 600 }}>
@@ -166,6 +174,12 @@ export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, g
         animationDuration={150}
         customDarkSquareStyle={{ backgroundColor: '#769656' }}
         customLightSquareStyle={{ backgroundColor: '#eeeed2' }}
+        customArrows={
+          lastMove
+            ? [[lastMove.from as Square, lastMove.to as Square, 'rgba(6,100,6,0.72)']]
+            : []
+        }
+        customArrowColor="rgba(6,100,6,0.72)"
       />
     </div>
   )
