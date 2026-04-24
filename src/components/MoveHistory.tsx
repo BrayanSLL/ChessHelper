@@ -7,10 +7,11 @@ interface Props {
 }
 
 export function MoveHistory({ moves }: Props) {
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = containerRef.current
+    if (el) el.scrollTop = el.scrollHeight
   }, [moves.length])
 
   // Group moves into pairs (white, black)
@@ -37,7 +38,7 @@ export function MoveHistory({ moves }: Props) {
   }
 
   return (
-    <div className="overflow-y-auto max-h-[260px] rounded-[24px] border border-white/6 bg-black/20">
+    <div ref={containerRef} className="overflow-y-auto max-h-[260px] rounded-[24px] border border-white/6 bg-black/20">
       <div className="sticky top-0 z-10 grid grid-cols-[48px_minmax(0,1fr)_minmax(0,1fr)] gap-2 border-b border-white/6 bg-[#221f1b] px-3 py-2 text-[11px] uppercase tracking-[0.24em] text-gray-500">
         <span>#</span>
         <span>Blancs</span>
@@ -57,7 +58,6 @@ export function MoveHistory({ moves }: Props) {
           {pair.black ? <MoveChip move={pair.black} sideLabel="Noirs" /> : <span className="flex-1" />}
         </div>
       ))}
-      <div ref={bottomRef} />
     </div>
   )
 }
