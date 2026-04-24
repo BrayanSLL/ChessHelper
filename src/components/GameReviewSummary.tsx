@@ -17,6 +17,38 @@ const QUALITY_ORDER: MoveQuality[] = [
   'blunder',
 ]
 
+// ACPL → estimated ELO lookup table (linear interpolation)
+const ACPL_ELO_TABLE: [number, number][] = [
+  [0, 2800],
+  [10, 2500],
+  [20, 2200],
+  [35, 2000],
+  [50, 1800],
+  [70, 1600],
+  [90, 1400],
+  [120, 1200],
+  [160, 1000],
+  [210, 800],
+  [280, 600],
+  [380, 400],
+  [500, 200],
+]
+
+function estimateElo(moves: AnalyzedMove[]): number | null {
+  if (moves.length < 3) return null
+  const acpl = moves.reduce((sum, m) => sum + m.cpLoss, 0) / moves.length
+
+  for (let i = 0; i < ACPL_ELO_TABLE.length - 1; i++) {
+    const [acpl0, elo0] = ACPL_ELO_TABLE[i]
+    const [acpl1, elo1] = ACPL_ELO_TABLE[i + 1]
+    if (acpl <= acpl1) {
+      const t = (acpl - acpl0) / (acpl1 - acpl0)
+      return Math.round(elo0 + t * (elo1 - elo0))
+    }
+  }
+  return 200
+}
+
 function formatAccuracy(moves: AnalyzedMove[]) {
   if (moves.length === 0) return 0
   const total = moves.reduce((sum, move) => {
@@ -57,6 +89,8 @@ export function GameReviewSummary({ moves, gameResult, isVisible }: Props) {
   const blackAccuracy = formatAccuracy(blackMoves)
   const whiteCounts = getQualityCounts(whiteMoves)
   const blackCounts = getQualityCounts(blackMoves)
+  const whiteElo = estimateElo(whiteMoves)
+  const blackElo = estimateElo(blackMoves)
   const bestMove = getBestMove(moves)
   const worstMove = getWorstMove(moves)
 
@@ -87,8 +121,8 @@ export function GameReviewSummary({ moves, gameResult, isVisible }: Props) {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <AccuracyCard side="Blancs" accuracy={whiteAccuracy} counts={whiteCounts} />
-        <AccuracyCard side="Noirs" accuracy={blackAccuracy} counts={blackCounts} />
+        <AccuracyCard side="Blancs" accuracy={whiteAccuracy} counts={whiteCounts} estimatedElo={whiteElo} />
+        <AccuracyCard side="Noirs" accuracy={blackAccuracy} counts={blackCounts} estimatedElo={blackElo} />
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -112,10 +146,12 @@ function AccuracyCard({
   side,
   accuracy,
   counts,
+  estimatedElo,
 }: {
   side: string
   accuracy: number
   counts: Record<MoveQuality, number>
+  estimatedElo: number | null
 }) {
   return (
     <div className="rounded-[24px] border border-white/6 bg-black/20 p-4">
@@ -123,6 +159,12 @@ function AccuracyCard({
         <div>
           <div className="text-[11px] uppercase tracking-[0.24em] text-gray-500">{side}</div>
           <div className="mt-1 text-3xl font-semibold text-white">{accuracy}%</div>
+          {estimatedElo !== null && (
+            <div className="mt-1 flex items-center gap-1">
+              <span className="text-[10px] uppercase tracking-[0.2em] text-gray-500">ELO estimé</span>
+              <span className="text-sm font-bold text-amber-300">~{estimatedElo}</span>
+            </div>
+          )}
         </div>
         <div className="h-14 w-14 rounded-full border-4 border-emerald-400/60 bg-emerald-500/10 flex items-center justify-center text-sm font-semibold text-emerald-300">
           {Math.round(accuracy)}
