@@ -18,20 +18,21 @@ const QUALITY_ORDER: MoveQuality[] = [
 ]
 
 // ACPL → estimated ELO lookup table (linear interpolation)
+// Shifted down vs. Lichess reference: depth-18 penalises sub-optimal moves
+// harder, so the same ACPL corresponds to a lower practical ELO.
 const ACPL_ELO_TABLE: [number, number][] = [
   [0, 2800],
-  [10, 2500],
-  [20, 2200],
-  [35, 2000],
-  [50, 1800],
-  [70, 1600],
-  [90, 1400],
-  [120, 1200],
-  [160, 1000],
-  [210, 800],
-  [280, 600],
-  [380, 400],
-  [500, 200],
+  [5, 2500],
+  [12, 2200],
+  [22, 2000],
+  [40, 1700],
+  [65, 1400],
+  [100, 1100],
+  [150, 900],
+  [220, 700],
+  [320, 500],
+  [460, 300],
+  [650, 100],
 ]
 
 function estimateElo(moves: AnalyzedMove[]): number | null {
