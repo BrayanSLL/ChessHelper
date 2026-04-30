@@ -149,6 +149,14 @@ export function ChessBoard({ fen, onMove, isValidMove, isFlipped, isAnalyzing, g
           if (isAnalyzing || gameOver) return false
           return tryMove(source, target, piece)
         }}
+        onPromotionPieceSelect={(piece, from, to) => {
+          if (!piece || !from || !to || isAnalyzing || gameOver) return false
+          const promotionPiece = piece[1].toLowerCase()
+          setSelectedSquare(null)
+          setMoveTargets([])
+          void onMove(from, to, promotionPiece)
+          return true
+        }}
         onPieceClick={(piece, square) => {
           if (selectedSquare === square) {
             setSelectedSquare(null)
